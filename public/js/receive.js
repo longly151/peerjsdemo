@@ -23,13 +23,77 @@
    */
   function initialize() {
     // Create own peer object with connection to shared PeerJS server
-    peer = new Peer(null, {
-      host: 'mypeer1505.herokuapp.com',
-      path: '/',
-      secure: true,
-      // debug: 2
-    });
+    
+    let xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = async function ($evt) {
+      if (xhr.readyState == 4 && xhr.status == 200) {
+        let res = JSON.parse(xhr.responseText);
+        console.log("response: ", res.v.iceServers);
+        peer = new Peer(null, {
+          host: 'mypeer1505.herokuapp.com',
+          path: '/',
+          secure: true,
+          config: res.v.iceServers,
+          // debug: 2
+        });
 
+
+        peer.on('open', function (id) {
+          // Workaround for peer.reconnect deleting previous id
+          if (peer.id === null) {
+            console.log('Received null id from peer open');
+            peer.id = lastPeerId;
+          } else {
+            lastPeerId = peer.id;
+          }
+
+          console.log('ID: ' + peer.id);
+          recvId.innerHTML = "ID: " + peer.id;
+          status.innerHTML = "Awaiting connection...";
+        });
+        peer.on('connection', function (c) {
+          // Allow only a single connection
+          if (conn) {
+            c.on('open', function () {
+              c.send("Already connected to another client");
+              setTimeout(function () {c.close();}, 500);
+            });
+            return;
+          }
+
+          conn = c;
+          console.log("Connected to: " + conn.peer);
+          status.innerHTML = "Connected"
+          ready();
+        });
+        peer.on('disconnected', function () {
+          status.innerHTML = "Connection lost. Please reconnect";
+          console.log('Connection lost. Please reconnect');
+
+          // Workaround for peer.reconnect deleting previous id
+          peer.id = lastPeerId;
+          peer._lastServerId = lastPeerId;
+          peer.reconnect();
+        });
+        peer.on('close', function () {
+          conn = null;
+          status.innerHTML = "Connection destroyed. Please refresh";
+          console.log('Connection destroyed');
+        });
+        peer.on('error', function (err) {
+          console.log(err);
+          alert('' + err);
+        });
+
+      }
+    }
+    xhr.open("PUT", "https://global.xirsys.net/_turn/PeerJSDemo", true);
+    xhr.setRequestHeader("Authorization", "Basic " + btoa(
+      "longly151:90ea43f6-dac5-11e9-8a2d-0242ac110007"));
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(JSON.stringify({
+      "format": "urls"
+    }));
     // peer = new Peer(null, {
     //   host: 'localhost',
     //   port: 3000,
@@ -37,53 +101,6 @@
     //   // secure: true,
     //   debug: 2
     // });
-
-    peer.on('open', function (id) {
-      // Workaround for peer.reconnect deleting previous id
-      if (peer.id === null) {
-        console.log('Received null id from peer open');
-        peer.id = lastPeerId;
-      } else {
-        lastPeerId = peer.id;
-      }
-
-      console.log('ID: ' + peer.id);
-      recvId.innerHTML = "ID: " + peer.id;
-      status.innerHTML = "Awaiting connection...";
-    });
-    peer.on('connection', function (c) {
-      // Allow only a single connection
-      if (conn) {
-        c.on('open', function () {
-          c.send("Already connected to another client");
-          setTimeout(function () {c.close();}, 500);
-        });
-        return;
-      }
-
-      conn = c;
-      console.log("Connected to: " + conn.peer);
-      status.innerHTML = "Connected"
-      ready();
-    });
-    peer.on('disconnected', function () {
-      status.innerHTML = "Connection lost. Please reconnect";
-      console.log('Connection lost. Please reconnect');
-
-      // Workaround for peer.reconnect deleting previous id
-      peer.id = lastPeerId;
-      peer._lastServerId = lastPeerId;
-      peer.reconnect();
-    });
-    peer.on('close', function () {
-      conn = null;
-      status.innerHTML = "Connection destroyed. Please refresh";
-      console.log('Connection destroyed');
-    });
-    peer.on('error', function (err) {
-      console.log(err);
-      alert('' + err);
-    });
   };
 
   /**
@@ -92,7 +109,7 @@
    */
   function ready() {
     conn.on('data', function (data) {
-      console.log("Recieve ",data);
+      console.log("Recieve ", data);
       var cueString = "<span class=\"cueMsg\">Cue: </span>";
       switch (data) {
         case 'Go':

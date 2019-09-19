@@ -23,20 +23,20 @@
    */
   function initialize() {
     // Create own peer object with connection to shared PeerJS server
-    // peer = new Peer(null, {
-    //   host: 'mypeer1505.herokuapp.com',
-    //   path: '/',
-    //   secure: true,
-    //   // debug: 2
-    // });
-
     peer = new Peer(null, {
-      host: 'localhost',
-      port: 3000,
+      host: 'mypeer1505.herokuapp.com',
       path: '/',
-      // secure: true,
-      debug: 2
+      secure: true,
+      // debug: 2
     });
+
+    // peer = new Peer(null, {
+    //   host: 'localhost',
+    //   port: 3000,
+    //   path: '/',
+    //   // secure: true,
+    //   debug: 2
+    // });
 
     peer.on('open', function (id) {
       // Workaround for peer.reconnect deleting previous id
